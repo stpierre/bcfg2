@@ -1,0 +1,118 @@
+* Generic Handlers
+** StructFile
+- Iterate through the changed entries:
+   1. Find all parent Group or Client tags.
+   2. If there are no parent Group or Client tags around any entry,
+      return ALL
+   3. If there's only one Group tag, return that group; or, if the
+      Group is negated, return all clients not in that group.
+   4. If there's a non-negated Client tag, return only that client
+      regardless of the presence of Group tags.
+   5. If there are multiple non-negated Client tags, return nothing.
+   6. Otherwise:
+      1. Create a predicate based on the parent tags.
+      2. Return the list of all clients that match the predicate.
+- Expose this functionality as StructFile.get_changes()
+** EntrySet
+- For each changed, added, or deleted file:
+  - If the file is info.xml:
+    - If it was added or deleted:
+      1. Return Bundler.changed_entry()
+    - If it was modified, iterate through the changed entries:
+      1. Find all parent Group, Client, and Path tags
+      2. If there are no such tags, return Bundler.changed_bundle()
+      3. If there's only one Group tag, add that group to the
+         temporary change list.
+      4. If there's a Client tag and no Path tags, add only that tag
+         to the temporary change list regardless of the presence of
+         Group tags.
+      5. If there are multiple Group tags, query Metadata for the
+         intersection of members of those two groups and add the
+         clients in question to the temporary changed client list.
+      6. If there are multiple Client or Path tags, add nothing.
+      7. If there is exactly one Path tag, filter the results of
+         Bundler.changed_entry() according to the other Client and
+         Group tags.
+  - If the file is not info.xml:
+    1. If the file is group- or client-specific, filter the results of
+       Bundler.changed_entry() for the client or group referenced.
+    2. If the file is not specific, return Bundler.changed_entry()
+- Expose this functionality as EntrySet.get_changes()
+** GroupSpool
+- For each entryset, return EntrySet.get_changes()
+- Ignore added or deleted directories; they will be handled by Bundler
+  if the were or are in use.
+- Expose this functionality as GroupSpool.get_changes()
+* Plugin-Specific Handlers
+** Bundler
+- For each changed bundle, return the intersection of
+  StructFile.get_changes() and Metadata.changed_bundle()
+- Ignore added or deleted bundles; they will be handled by Metadata if
+  they are or were in use.
+- Expose this functionality as Bundler.changed_entry()
+** Cfg
+- Return GroupSpool.get_changes()
+** Defaults
+- For each modified file, return StructFile.get_changes()
+- (Note: This is an overestimate, but it saves us from running the
+  regex over all Bundler entries and doing the work to figure out what
+  all is affected, especially since the set of affected clients is
+  likely to be fairly large in most scenarios anyway.)
+** FileProbes
+- Return StructFile.get_changes()
+** GroupPatterns
+- For each added or deleted GroupPattern tag, and for each
+  GroupPattern tag that is the parent of a changed, added or deleted
+  NamePattern, NameRange, or Group tag, return the list of all clients
+  that match the GroupPattern
+** Metadata
+- For each added, modified, or deleted Client tag in clients.xml,
+  return that client.
+- For each added, modified, or deleted empty Group tag (i.e., group
+  assertion) or Bundle tag in groups.xml:
+  1. Create a predicate based on all parent tags.
+  2. Return the list of all clients that match the predicate.
+- For each added or modified non-empty (i.e., conditional) Group tag
+  or Client tag in groups.xml:
+  - For the added or modified tag itself, the immediate parent of the
+    added or modified tag, and all conditional tag children of the
+    added or modified tag:
+    1. Create a predicate based on all parent tags of the tag in
+       question.
+    2. Return the list of all clients that match the predicate.
+- For each removed conditional Group tag or Client tag in groups.xml:
+  - For the removed tag itself, and all conditional tag children of
+    the removed tag:
+    1. Create a predicate based on all parent tags of the tag in
+       question.
+    2. Return the list of all clients that match the predicate.
+** NagiosGen
+- For default-host.cfg or default-group.cfg, return ALL
+- For *-group.cfg, return the group specified in the filename
+- For nagios.xml, return StructFile.get_changes()
+** Packages
+- Return StructFile.get_changes()
+** Probes
+- For a group- or host-specific probe, return the group or host specified
+- For a generic probe, return ALL
+** Properties
+- For a Properties file that implements automatch, return
+  StructFile.get_changes()
+- For all other Properties files, return ALL
+** PuppetENC
+- Return ALL
+** Rules
+- For each added, deleted, or modified entry, and for each entry that
+  is an ancestor of an added, deleted, or modified Group or Client
+  tag, return Bundler.changed_entry()
+** SEModules
+- Return GroupSpool.get_changes()
+** SSHbase
+- Return EntrySet.get_changes()
+** SSLCA
+- Return GroupSpool.get_changes()
+** TemplateHelper
+- Return EntrySet.get_changes()
+** Trigger
+- Return ALL
+
