@@ -112,7 +112,7 @@
 ** SSLCA
 - Return GroupSpool.get_changes()
 ** TemplateHelper
-- Return EntrySet.get_changes()
+- Return ALL
 ** Trigger
 - Return ALL
 
